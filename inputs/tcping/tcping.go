@@ -8,16 +8,26 @@ package tcping
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
+	"os"
+	//"strconv"
+	//"strings"
 	"sync"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
+	"github.com/viger1228/golib/mysql"
 	"github.com/viger1228/golib/tcping"
+	"github.com/viger1228/golib/tool"
 )
 
 type Tcping struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+	Times    int
+	Timeout  int
 }
 
 func (self *Tcping) SampleConfig() string {
@@ -30,36 +40,49 @@ func (self *Tcping) Description() string {
 
 func (self *Tcping) Gather(acc telegraf.Accumulator) error {
 
-	target := []string{
-		"www.baidu.com:80",
-		"www.google.com:80",
-		"web.telegram.org:443",
+	//target := []string{
+	//	"www.baidu.com:80",
+	//	"www.google.com:80",
+	//	"web.telegram.org:443",
+	//}
+
+	hostname, err := os.Hostname()
+	tool.CheckErr(err)
+	sql := fmt.Sprintf("SELECT `hostname`,`target`,`port` FROM "+
+		"t_telegraf_tcping WHERE `enable`=1 AND `hostname`='%v'", hostname)
+
+	api := mysql.MySQL{
+		Host:     self.Host,
+		Port:     self.Port,
+		User:     self.User,
+		Password: self.Password,
+		Database: self.Database,
 	}
+
+	target := api.Query(sql)
 
 	var wg sync.WaitGroup
 
 	for _, t := range target {
 		wg.Add(1)
-		go func(t string) {
+		go func(t map[string]interface{}) {
 			defer wg.Done()
 			tags := make(map[string]string)
 			fields := make(map[string]interface{})
 
-			url := strings.Split(t, ":")
-			port, _ := strconv.Atoi(url[1])
 			cli := tcping.TCPinger{
-				Target:   url[0],
-				Port:     port,
-				Times:    10,
-				Timeout:  2,
+				Target:   t["target"].(string),
+				Port:     t["port"].(int),
+				Times:    self.Times,
+				Timeout:  self.Timeout,
 				Interval: 1,
 				Statis:   map[string]float64{},
 			}
 			cli.Run()
 
-			tags["target"] = cli.Target
-			tags["ip"] = cli.IP
-			tags["port"] = fmt.Sprintf("%v", cli.Port)
+			tags["@target"] = cli.Target
+			tags["@ip"] = cli.IP
+			tags["@port"] = fmt.Sprintf("%v", cli.Port)
 
 			fields["num"] = cli.Statis["num"]
 			fields["max"] = cli.Statis["max"]
