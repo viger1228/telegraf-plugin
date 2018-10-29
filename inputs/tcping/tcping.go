@@ -9,15 +9,12 @@ package tcping
 import (
 	"fmt"
 	"os"
-	//"strconv"
-	//"strings"
 	"sync"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
 	"github.com/viger1228/golib/mysql"
 	"github.com/viger1228/golib/tcping"
-	"github.com/viger1228/golib/tool"
 )
 
 type Tcping struct {
@@ -47,7 +44,10 @@ func (self *Tcping) Gather(acc telegraf.Accumulator) error {
 	//}
 
 	hostname, err := os.Hostname()
-	tool.CheckErr(err)
+	if err != nil {
+		return err
+	}
+
 	sql := fmt.Sprintf("SELECT `hostname`,`target`,`port` FROM "+
 		"t_telegraf_tcping WHERE `enable`=1 AND `hostname`='%v'", hostname)
 
