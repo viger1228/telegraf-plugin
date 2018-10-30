@@ -17,6 +17,21 @@ import (
 	"github.com/viger1228/golib/traceroute"
 )
 
+const sampleConfig = `
+  ## Task Database
+  host = "127.0.0.1"
+  port = 3306
+  user = ""
+  password = ""
+  database = "mon"
+  ## Execute Time
+  times = 20
+  ## Execute Timeout
+  timeout = 2
+  ## Execute Interval
+  timeout = 2
+`
+
 type Traceroute struct {
 	Host     string
 	Port     int
@@ -25,14 +40,15 @@ type Traceroute struct {
 	Database string
 	Times    int
 	Timeout  int
+	Interval int
 }
 
 func (self *Traceroute) SampleConfig() string {
-	return ""
+	return sampleConfig
 }
 
 func (self *Traceroute) Description() string {
-	return ""
+	return "Traceroute from DB Task list and return statistics"
 }
 
 func (self *Traceroute) Gather(acc telegraf.Accumulator) error {
@@ -48,7 +64,7 @@ func (self *Traceroute) Gather(acc telegraf.Accumulator) error {
 		return err
 	}
 
-	sql := fmt.Sprintf("SELECT `hostname`,`target` FROM "+
+	sql := fmt.Sprintf("SELECT `hostname`,`type`,`target`,`note` FROM "+
 		"t_telegraf_traceroute WHERE `enable`=1 AND `hostname`='%v'", hostname)
 
 	api := mysql.MySQL{
@@ -72,7 +88,7 @@ func (self *Traceroute) Gather(acc telegraf.Accumulator) error {
 				Target:   t["target"].(string),
 				Times:    self.Times,
 				Timeout:  self.Timeout,
-				Interval: 1,
+				Interval: self.Interval,
 			}
 			cli.Run()
 
@@ -81,7 +97,9 @@ func (self *Traceroute) Gather(acc telegraf.Accumulator) error {
 				fields := make(map[string]interface{})
 
 				tags["@target"] = cli.Target
+				tags["@type"] = t["type"].(string)
 				tags["@hop"] = fmt.Sprintf("%02d_%v", host.Hop, host.IP)
+				tags["@note"] = t["note"].(string)
 
 				fields["num"] = host.Num
 				fields["max"] = host.Max

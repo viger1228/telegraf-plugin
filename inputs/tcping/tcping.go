@@ -17,6 +17,21 @@ import (
 	"github.com/viger1228/golib/tcping"
 )
 
+const sampleConfig = `
+  ## Task Database
+  host = "127.0.0.1"
+  port = 3306
+  user = ""
+  password = ""
+  database = "mon"
+  ## Execute Time
+  times = 20
+  ## Execute Timeout
+  timeout = 2
+  ## Execute Interval
+  interval = 2
+`
+
 type Tcping struct {
 	Host     string
 	Port     int
@@ -25,14 +40,15 @@ type Tcping struct {
 	Database string
 	Times    int
 	Timeout  int
+	Interval int
 }
 
 func (self *Tcping) SampleConfig() string {
-	return ""
+	return sampleConfig
 }
 
 func (self *Tcping) Description() string {
-	return ""
+	return "Tcping from DB Task list and return statistics"
 }
 
 func (self *Tcping) Gather(acc telegraf.Accumulator) error {
@@ -48,7 +64,7 @@ func (self *Tcping) Gather(acc telegraf.Accumulator) error {
 		return err
 	}
 
-	sql := fmt.Sprintf("SELECT `hostname`,`target`,`port` FROM "+
+	sql := fmt.Sprintf("SELECT `hostname`,`type`,`target`,`port`,`note` FROM "+
 		"t_telegraf_tcping WHERE `enable`=1 AND `hostname`='%v'", hostname)
 
 	api := mysql.MySQL{
@@ -75,14 +91,16 @@ func (self *Tcping) Gather(acc telegraf.Accumulator) error {
 				Port:     t["port"].(int),
 				Times:    self.Times,
 				Timeout:  self.Timeout,
-				Interval: 1,
+				Interval: self.Interval,
 				Statis:   map[string]float64{},
 			}
 			cli.Run()
 
 			tags["@target"] = cli.Target
+			tags["@type"] = t["type"].(string)
 			tags["@ip"] = cli.IP
 			tags["@port"] = fmt.Sprintf("%v", cli.Port)
+			tags["@note"] = t["note"].(string)
 
 			fields["num"] = cli.Statis["num"]
 			fields["max"] = cli.Statis["max"]
