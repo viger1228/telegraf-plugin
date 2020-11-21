@@ -3,7 +3,7 @@ Navicat MySQL Data Transfer
 
 Source Server         : MonDB
 Source Server Version : 50556
-Source Host           : wdemo.pai9.net:9003
+Source Host           : 
 Source Database       : mon
 
 Target Server Type    : MYSQL
